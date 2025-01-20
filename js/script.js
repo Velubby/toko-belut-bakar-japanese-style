@@ -234,49 +234,43 @@ if (checkoutForm) {
             // Calculate total
             const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-            // Generate unique order ID
-            const orderId = 'ORDER-' + Date.now();
-
-            // Prepare Midtrans parameters
+            // Prepare transaction parameters
             const transactionParams = {
                 transaction_details: {
-                    order_id: orderId,
+                    order_id: 'ORDER-' + Date.now(),
                     gross_amount: total
                 },
-                credit_card: {
-                    secure: true
-                },
+                item_details: cartItems.map(item => ({
+                    id: 'ITEM-' + Date.now(),
+                    price: item.price,
+                    quantity: item.quantity,
+                    name: item.name
+                })),
                 customer_details: {
                     first_name: name,
                     email: email,
                     phone: phone
-                },
-                item_details: cartItems.map(item => ({
-                    id: `ITEM-${Date.now()}-${item.name}`,
-                    price: item.price,
-                    quantity: item.quantity,
-                    name: item.name
-                }))
+                }
             };
 
-            // Call Snap API directly
+            // Check if snap is available
+            if (typeof window.snap === 'undefined') {
+                throw new Error('Midtrans Snap not loaded');
+            }
+
+            // Call snap.pay
             window.snap.pay(transactionParams, {
                 onSuccess: function(result) {
                     console.log('Payment success:', result);
                     alert('Pembayaran berhasil!');
-                    // Clear cart
                     cartItems = [];
                     updateCart();
-                    // Close modal
                     document.getElementById('checkout-modal').style.display = 'none';
-                    // Reset form
                     checkoutForm.reset();
                 },
                 onPending: function(result) {
                     console.log('Payment pending:', result);
                     alert('Menunggu pembayaran Anda!');
-                    submitButton.disabled = false;
-                    submitButton.textContent = 'Lanjutkan ke Pembayaran';
                 },
                 onError: function(result) {
                     console.error('Payment error:', result);
@@ -295,7 +289,6 @@ if (checkoutForm) {
         } catch (error) {
             console.error('Error:', error);
             alert('Terjadi kesalahan: ' + error.message);
-            // Reset button state
             const submitButton = checkoutForm.querySelector('button[type="submit"]');
             submitButton.disabled = false;
             submitButton.textContent = 'Lanjutkan ke Pembayaran';
@@ -375,6 +368,15 @@ window.addEventListener('load', () => {
     const loader = document.querySelector('.loader-container');
     if (loader) {
         loader.style.display = 'none';
+    }
+});
+
+// Add this at the start of your script.js
+window.addEventListener('load', function() {
+    if (typeof window.snap === 'undefined') {
+        console.error('Midtrans Snap failed to load');
+    } else {
+        console.log('Midtrans Snap loaded successfully');
     }
 });
 
