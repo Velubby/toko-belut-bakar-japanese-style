@@ -56,6 +56,7 @@ if (closeModalButtons) {
     });
 }
 
+
 // Perbaiki click outside untuk semua modal
 window.onclick = (e) => {
     const modals = document.querySelectorAll('.modal');
@@ -90,46 +91,47 @@ function addToCart(name, price) {
 }
 
 function updateCart() {
-  const cartItemsContainer = document.querySelector('.cart-items');
-  const cartCount = document.querySelector('.cart-count');
-  const cartTotal = document.querySelector('.cart-total span');
-  
-  if (cartItemsContainer) {
-      cartItemsContainer.innerHTML = '';
-      
-      cartItems.forEach(item => {
-          const cartItemHTML = `
-              <div class="cart-item">
-                  <div class="item-detail">
-                      <h3>${item.name}</h3>
-                      <div class="item-price">IDR ${item.price.toLocaleString()}</div>
-                      <div class="item-quantity">
-                          <button class="quantity-btn minus" onclick="decreaseQuantity('${item.name}', event)">-</button>
-                          <span class="quantity-display">${item.quantity}</span>
-                          <button class="quantity-btn plus" onclick="increaseQuantity('${item.name}', event)">+</button>
-                      </div>
-                  </div>
-                  <button class="remove-item" onclick="removeFromCart('${item.name}', event)">
-                      <i data-feather="trash-2"></i>
-                  </button>
-              </div>
-          `;
-          cartItemsContainer.innerHTML += cartItemHTML;
-      });
-  }
-  
-  if (cartCount) {
-      cartCount.textContent = cartItems.reduce((acc, item) => acc + item.quantity, 0);
-  }
-  
-  if (cartTotal) {
-      const total = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-      cartTotal.textContent = `IDR ${total.toLocaleString()}`;
-  }
-  
-  if (typeof feather !== 'undefined') {
-      feather.replace();
-  }
+    const cartItemsContainer = document.querySelector('.cart-items');
+    const cartCount = document.querySelector('.cart-count');
+    const cartTotal = document.querySelector('.cart-total span');
+    
+    if (cartItemsContainer) {
+        cartItemsContainer.innerHTML = '';
+        
+        cartItems.forEach(item => {
+            const cartItemHTML = `
+                <div class="cart-item">
+                    <div class="item-detail">
+                        <h3>${item.name}</h3>
+                        <div class="item-price">IDR ${item.price.toLocaleString()}</div>
+                        <div class="item-quantity">
+                            <button class="quantity-btn minus" onclick="decreaseQuantity('${item.name}', event)">-</button>
+                            <span class="quantity-display">${item.quantity}</span>
+                            <button class="quantity-btn plus" onclick="increaseQuantity('${item.name}', event)">+</button>
+                        </div>
+                    </div>
+                    <button class="remove-item" onclick="removeFromCart('${item.name}', event)">
+                        <i data-feather="trash-2"></i>
+                    </button>
+                </div>
+            `;
+            cartItemsContainer.innerHTML += cartItemHTML;
+        });
+
+        // Initialize icons after updating cart content
+        initializeIcons();
+    }
+    
+    if (cartCount) {
+        const totalItems = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+        cartCount.textContent = totalItems;
+        cartCount.style.display = totalItems > 0 ? 'flex' : 'none';
+    }
+    
+    if (cartTotal) {
+        const total = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+        cartTotal.textContent = `IDR ${total.toLocaleString()}`;
+    }
 }
 
 function removeFromCart(name, event) {
@@ -226,7 +228,6 @@ if (checkoutForm) {
         }
 
         try {
-            // Show loading state
             const submitButton = checkoutForm.querySelector('button[type="submit"]');
             submitButton.disabled = true;
             submitButton.textContent = 'Memproses...';
@@ -253,15 +254,9 @@ if (checkoutForm) {
                 }
             };
 
-            // Check if snap is available
-            if (typeof window.snap === 'undefined') {
-                throw new Error('Midtrans Snap not loaded');
-            }
-
             // Call snap.pay
             window.snap.pay(transactionParams, {
                 onSuccess: function(result) {
-                    console.log('Payment success:', result);
                     alert('Pembayaran berhasil!');
                     cartItems = [];
                     updateCart();
@@ -269,17 +264,14 @@ if (checkoutForm) {
                     checkoutForm.reset();
                 },
                 onPending: function(result) {
-                    console.log('Payment pending:', result);
                     alert('Menunggu pembayaran Anda!');
                 },
                 onError: function(result) {
-                    console.error('Payment error:', result);
                     alert('Pembayaran gagal!');
                     submitButton.disabled = false;
                     submitButton.textContent = 'Lanjutkan ke Pembayaran';
                 },
                 onClose: function() {
-                    console.log('Customer closed the popup without finishing the payment');
                     submitButton.disabled = false;
                     submitButton.textContent = 'Lanjutkan ke Pembayaran';
                     alert('Anda menutup popup tanpa menyelesaikan pembayaran');
@@ -289,7 +281,6 @@ if (checkoutForm) {
         } catch (error) {
             console.error('Error:', error);
             alert('Terjadi kesalahan: ' + error.message);
-            const submitButton = checkoutForm.querySelector('button[type="submit"]');
             submitButton.disabled = false;
             submitButton.textContent = 'Lanjutkan ke Pembayaran';
         }
@@ -355,12 +346,20 @@ backToTopButton.addEventListener('click', () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    updateCart();
+// Initialize function
+function initializeIcons() {
     if (typeof feather !== 'undefined') {
         feather.replace();
     }
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize icons
+    initializeIcons();
+    
+    // Initialize cart
+    updateCart();
 });
 
 // Remove loading spinner if exists
