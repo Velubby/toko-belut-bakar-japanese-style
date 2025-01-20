@@ -226,65 +226,77 @@ if (checkoutForm) {
         }
 
         try {
-            // Prepare form data
-            const formData = {
-                name: name,
-                email: email,
-                phone: phone,
-                items: cartItems,
-                total: cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-            };
-
             // Show loading state
             const submitButton = checkoutForm.querySelector('button[type="submit"]');
             submitButton.disabled = true;
             submitButton.textContent = 'Memproses...';
 
-            // Send request to create transaction
-            const response = await fetch('./php/create_transaction.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
+            // Calculate total
+            const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+            // Generate unique order ID
+            const orderId = 'ORDER-' + Date.now();
+
+            // Prepare Midtrans parameters
+            const transactionParams = {
+                transaction_details: {
+                    order_id: orderId,
+                    gross_amount: total
                 },
-                body: JSON.stringify(formData)
+                credit_card: {
+                    secure: true
+                },
+                customer_details: {
+                    first_name: name,
+                    email: email,
+                    phone: phone
+                },
+                item_details: cartItems.map(item => ({
+                    id: `ITEM-${Date.now()}-${item.name}`,
+                    price: item.price,
+                    quantity: item.quantity,
+                    name: item.name
+                }))
+            };
+
+            // Call Snap API directly
+            window.snap.pay(transactionParams, {
+                onSuccess: function(result) {
+                    console.log('Payment success:', result);
+                    alert('Pembayaran berhasil!');
+                    // Clear cart
+                    cartItems = [];
+                    updateCart();
+                    // Close modal
+                    document.getElementById('checkout-modal').style.display = 'none';
+                    // Reset form
+                    checkoutForm.reset();
+                },
+                onPending: function(result) {
+                    console.log('Payment pending:', result);
+                    alert('Menunggu pembayaran Anda!');
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Lanjutkan ke Pembayaran';
+                },
+                onError: function(result) {
+                    console.error('Payment error:', result);
+                    alert('Pembayaran gagal!');
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Lanjutkan ke Pembayaran';
+                },
+                onClose: function() {
+                    console.log('Customer closed the popup without finishing the payment');
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Lanjutkan ke Pembayaran';
+                    alert('Anda menutup popup tanpa menyelesaikan pembayaran');
+                }
             });
 
-            const data = await response.json();
-
-            if (data.token) {
-                // Trigger Snap popup
-                window.snap.pay(data.token, {
-                    onSuccess: function(result) {
-                        alert('Pembayaran berhasil!');
-                        // Clear cart
-                        cartItems = [];
-                        updateCart();
-                        // Close modal
-                        document.getElementById('checkout-modal').style.display = 'none';
-                        // Reset form
-                        checkoutForm.reset();
-                    },
-                    onPending: function(result) {
-                        alert('Menunggu pembayaran Anda!');
-                    },
-                    onError: function(result) {
-                        alert('Pembayaran gagal!');
-
-                    },
-                    onClose: function() {
-                        // Enable submit button again
-                        submitButton.disabled = false;
-                        submitButton.textContent = 'Lanjutkan ke Pembayaran';
-                        alert('Anda menutup popup tanpa menyelesaikan pembayaran');
-                    }
-                });
-            } else {
-                throw new Error(data.message || 'Gagal mendapatkan token pembayaran');
-            }
         } catch (error) {
             console.error('Error:', error);
             alert('Terjadi kesalahan: ' + error.message);
             // Reset button state
+            const submitButton = checkoutForm.querySelector('button[type="submit"]');
             submitButton.disabled = false;
             submitButton.textContent = 'Lanjutkan ke Pembayaran';
         }
